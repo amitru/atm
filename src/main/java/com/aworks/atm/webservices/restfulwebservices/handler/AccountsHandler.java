@@ -1,10 +1,20 @@
 package com.aworks.atm.webservices.restfulwebservices.handler;
 
+import static com.aworks.atm.webservices.restfulwebservices.constants.Constants.EXTRACTED_NOTES;
+import static com.aworks.atm.webservices.restfulwebservices.constants.Constants.INSUFF_BALANCE;
+import static com.aworks.atm.webservices.restfulwebservices.constants.Constants.INVALID_CREDS;
+import static com.aworks.atm.webservices.restfulwebservices.constants.Constants.NOT_ENOUGH_CASH_ATM;
+import static com.aworks.atm.webservices.restfulwebservices.constants.Constants.NO_SUCH_DENOM;
+import static com.aworks.atm.webservices.restfulwebservices.constants.Constants.SPECIFY_AMT_GRTER_THAN_ZERO;
+
 import java.util.Map;
 import java.util.TreeMap;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
 import com.aworks.atm.webservices.restfulwebservices.beans.Account;
 import com.aworks.atm.webservices.restfulwebservices.beans.CheckBalanceResponse;
 import com.aworks.atm.webservices.restfulwebservices.beans.WithdrawalResponse;
@@ -13,25 +23,23 @@ import com.aworks.atm.webservices.restfulwebservices.dao.AccountDaoService;
 import com.aworks.atm.webservices.restfulwebservices.dao.AtmDaoService;
 import com.aworks.atm.webservices.restfulwebservices.exception.GenericException;
 import com.aworks.atm.webservices.restfulwebservices.exception.InvalidCredentialsException;
-import static com.aworks.atm.webservices.restfulwebservices.constants.Constants.INVALID_CREDS;
-import static com.aworks.atm.webservices.restfulwebservices.constants.Constants.NOT_ENOUGH_CASH_ATM;
-import static com.aworks.atm.webservices.restfulwebservices.constants.Constants.INSUFF_BALANCE;
-import static com.aworks.atm.webservices.restfulwebservices.constants.Constants.SPECIFY_AMT_GRTER_THAN_ZERO;
-import static com.aworks.atm.webservices.restfulwebservices.constants.Constants.EXTRACTED_NOTES;
-import static com.aworks.atm.webservices.restfulwebservices.constants.Constants.NO_SUCH_DENOM;
 
 @Service
 public class AccountsHandler {
 
+	private static final Logger logger = LogManager.getLogger(AccountsHandler.class);
+	
 	@Autowired
 	AtmDaoService atmDaoService;
 	
 	@Autowired
 	AccountDaoService accountDaoService;
 	
+	
 	public CheckBalanceResponse fetchBalance(Account account) {
 		CheckBalanceResponse acctDetails =  accountDaoService.findBalance(account.getNumber(),account.getPin());
 		if(acctDetails == null) {
+			logger.error("Invalid Credentials Entered");
 			throw new InvalidCredentialsException(INVALID_CREDS);
 		}
 		return acctDetails;
@@ -41,6 +49,7 @@ public class AccountsHandler {
 		WithdrawalResponse response=null;
 		Account acctDetails =  accountDaoService.findOne(wReq.getAccount(),wReq.getPin());
 		if(acctDetails == null) {
+			logger.error("Invalid Credentials Entered");
 			throw new InvalidCredentialsException(INVALID_CREDS);
 		}
 		
@@ -50,10 +59,13 @@ public class AccountsHandler {
 		TreeMap<Integer, Integer> denominationsMap =  atmDaoService.getDenominations(wReq.getAtmId());
 		
 		if(atmBalance<amountToWithdraw) {
+			logger.error("Not Enough Cash in the ATM for atm id-"+ wReq.atmId);
 			throw new GenericException(NOT_ENOUGH_CASH_ATM);} 
 		else if(amountToWithdraw>withdrawableBal) {
+			logger.error("The account balance is less, can't withdraw amountToWithdraw-"+ amountToWithdraw + " withdrawableBal-"+ withdrawableBal);
 			throw new GenericException(INSUFF_BALANCE);
 		} else if(amountToWithdraw<=0) {
+			logger.error("Amount to withdraw is-" + amountToWithdraw + " and is <=0, can't withdraw");
 			throw new GenericException(SPECIFY_AMT_GRTER_THAN_ZERO);
 		}
 		else {
@@ -101,10 +113,13 @@ public class AccountsHandler {
 			}
 		
 		if(reim>0) {
+			logger.error("No denominations exists for the requested amount toWithDraw-" + toWithDraw);
 			throw new GenericException(NO_SUCH_DENOM);
 		} else {
 			//all denomin correct, return new balance and denominations received
 			response= new WithdrawalResponse(withdrawableBal-toWithDraw, message.toString());
+			logger.debug("Amount debited New balance-" + response.getNewBalance() + " message-" + message.toString());
+			
 		}
 		return response;
 	}
