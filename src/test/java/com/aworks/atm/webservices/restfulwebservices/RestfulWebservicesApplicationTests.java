@@ -15,6 +15,7 @@ import com.aworks.atm.webservices.restfulwebservices.beans.CheckBalanceResponse;
 import com.aworks.atm.webservices.restfulwebservices.beans.WithdrawalResponse;
 import com.aworks.atm.webservices.restfulwebservices.beans.WithdrawlRequest;
 import com.aworks.atm.webservices.restfulwebservices.dao.AccountDaoService;
+import com.aworks.atm.webservices.restfulwebservices.exception.GenericException;
 import com.aworks.atm.webservices.restfulwebservices.exception.InvalidCredentialsException;
 import com.aworks.atm.webservices.restfulwebservices.handler.AccountsHandler;
 
@@ -27,7 +28,6 @@ public class RestfulWebservicesApplicationTests {
 	
 	@MockBean
 	private AccountDaoService accountService;
-	
 	
 	@Test(expected = InvalidCredentialsException.class)
 	public void verifyPinTest() {
@@ -51,5 +51,37 @@ public class RestfulWebservicesApplicationTests {
 		assertEquals(wResp.getNewBalance(), accountsHandler.withdrawBalance(wReq).getNewBalance());
 	}
 	
+	//NOT_ENOUGH_CASH_ATM
+	@Test(expected = GenericException.class)
+	public void notEnoughCashATMTest() {
+		WithdrawlRequest wReq = new WithdrawlRequest(1, 123456789, 1234, 1600);
+		when(accountService.findOne(123456789, 1234)).thenReturn(new Account(800,200));
+		accountsHandler.withdrawBalance(wReq);
+	}
 	
+	
+	//INSUFF_BALANCE
+	@Test(expected = GenericException.class)
+	public void testInsuffBalance() {
+		WithdrawlRequest wReq = new WithdrawlRequest(1, 123456789, 1234, 900);
+		when(accountService.findOne(123456789, 1234)).thenReturn(new Account(800,200));
+		accountsHandler.withdrawBalance(wReq);
+	}
+	
+	
+	//SPECIFY_AMT_GRTER_THAN_ZERO
+	@Test(expected = GenericException.class)
+	public void testRequestedWithDrawal() {
+		WithdrawlRequest wReq = new WithdrawlRequest(1, 123456789, 1234, 0);
+		when(accountService.findOne(123456789, 1234)).thenReturn(new Account(800,200));
+		accountsHandler.withdrawBalance(wReq);
+	}
+	
+	//NO_SUCH_DENOM
+	@Test(expected = GenericException.class)
+	public void testNoSuchDenominations() {
+		WithdrawlRequest wReq = new WithdrawlRequest(1, 123456789, 1234, 76);
+		when(accountService.findOne(123456789, 1234)).thenReturn(new Account(800,200));
+		accountsHandler.withdrawBalance(wReq);
+	}
 }
